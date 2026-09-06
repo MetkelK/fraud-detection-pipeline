@@ -25,9 +25,22 @@ df['is_suspicious_type'] = df['type'].isin(['TRANSFER', 'CASH_OUT']).astype(int)
 # One-hot encode transaction type
 df = pd.get_dummies(df, columns=['type'])
 
-print(f"Rows: {len(df)}")
+print(f"Rows before sampling: {len(df)}")
+print(f"Fraud cases before sampling: {df['isfraud'].sum()}")
+
+# To minimize dataset size, keep all fraud rows and keep only a random sample of non-fraud rows per step
+fraud = df[df['isfraud'] == 1]
+non_fraud = df[df['isfraud'] == 0]
+
+non_fraud_sampled = non_fraud.groupby('step', group_keys=False).apply(
+    lambda x: x.sample(frac=0.0774, random_state=42)
+)
+
+df = pd.concat([fraud, non_fraud_sampled]).reset_index(drop=True)
+
+print(f"Rows after sampling: {len(df)}")
+print(f"Fraud cases after sampling: {df['isfraud'].sum()}")
 print(f"Columns: {df.columns.tolist()}")
-print(f"Fraud cases: {df['isfraud'].sum()}")
 
 # Load
 print("Loading data...")
