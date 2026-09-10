@@ -34,16 +34,24 @@ jobs:
     needs: build-and-push
     runs-on: ubuntu-latest
     steps:
-      - name: Deploy to EC2
-        uses: appleboy/ssh-action@v1.0.3
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          script: |
-            docker pull ${{ secrets.DOCKERHUB_USERNAME }}/fraud-api:latest
-            docker stop fraud-api || true
-            docker rm fraud-api || true
-            docker run -d --name fraud-api --env-file .env --restart unless-stopped -p 8000:8000 ${{ secrets.DOCKERHUB_USERNAME }}/fraud-api:latest
-            # Keep current and previous image only, remove older ones to leave space on instance
-            docker images ${{ secrets.DOCKERHUB_USERNAME }}/fraud-api --format "{{.ID}}" | tail -n +3 | xargs -r docker rmi -f
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Deploy via SSM
+        run: |
+          aws ssm send-command \
+            --instance-ids "${{ secrets.EC2_INSTANCE_ID }}" \
+            --document-name "AWS-RunShellScript" \
+            --comment "Deploy fraud-api" \
+            --parameters '{"commands":[
+              "docker pull metkelk/fraud-api:latest",
+              "docker stop fraud-api || true",
+              "docker rm fraud-api || true",
+              "docker run -d --name fraud-api --env-file /home/ec2-user/.env --restart unless-stopped -p 8000:8000 metkelk/fraud-api:latest",
+              "docker images metkelk/fraud-api --format \"{{.ID}}\" | tail -n +3 | xargs -r docker rmi -f"
+            ]}' \
+            --output text
