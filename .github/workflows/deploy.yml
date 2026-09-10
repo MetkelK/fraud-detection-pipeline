@@ -45,3 +45,5 @@ jobs:
             docker stop fraud-api || true
             docker rm fraud-api || true
             docker run -d --name fraud-api --env-file .env --restart unless-stopped -p 8000:8000 ${{ secrets.DOCKERHUB_USERNAME }}/fraud-api:latest
+            # Keep current and previous image only, remove older ones to leave space on instance
+            docker images ${{ secrets.DOCKERHUB_USERNAME }}/fraud-api --format "{{.ID}}" | tail -n +3 | xargs -r docker rmi -f
