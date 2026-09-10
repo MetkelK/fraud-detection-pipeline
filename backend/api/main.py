@@ -6,11 +6,19 @@ from pyspark.ml import PipelineModel
 from dotenv import load_dotenv
 import psycopg2
 import os
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+from fastapi import Request
 
 load_dotenv(os.path.join(os.path.dirname(__file__), '../../.env'))
 model_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../model'))
 
 app = FastAPI(title="Detection API")
+
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.add_middleware(
     CORSMiddleware,
@@ -27,7 +35,8 @@ def root():
     return {"message": "Detection API is running"}
 
 @app.get("/stats")
-def get_stats():
+@limiter.limit("30/minute")
+def get_stats(request: Request):
     conn = get_db()
     cur = conn.cursor()
     
@@ -51,7 +60,8 @@ def get_stats():
     }
 
 @app.get("/fraud-by-type")
-def get_fraud_by_type():
+@limiter.limit("30/minute")
+def get_fraud_by_type(request: Request):
     conn = get_db()
     cur = conn.cursor()
     
@@ -87,7 +97,8 @@ def get_fraud_by_type():
     ]
 
 @app.get("/fraud-over-time")
-def get_fraud_over_time():
+@limiter.limit("30/minute")
+def get_fraud_over_time(request: Request):
     conn = get_db()
     cur = conn.cursor()
     
@@ -115,7 +126,8 @@ def get_fraud_over_time():
     ]
 
 @app.get("/model-info")
-def get_model_info():
+@limiter.limit("30/minute")
+def get_model_info(request: Request):
     return {
         "auc": 0.9967,
         "test_auc": 0.9966,
@@ -136,7 +148,6 @@ def get_model_info():
             "typeIndex": 0.1518
         }
     }
-
 spark = SparkSession.builder \
     .appName("Detection API") \
     .getOrCreate()
@@ -169,7 +180,8 @@ class Transaction(BaseModel):
         return v
     
 @app.post("/predict")
-def predict(transaction: Transaction):
+@limiter.limit("15/minute")
+def predict(request: Request, transaction: Transaction):
     data = [{
         "step": 1,
         "type": transaction.type,
