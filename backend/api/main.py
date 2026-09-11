@@ -25,7 +25,8 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:5173",
         "http://localhost:3000",
-        "http://fraud-api-frontend-metkelk.s3-website.us-east-2.amazonaws.com"
+        "http://fraud-api-frontend-metkelk.s3-website.us-east-2.amazonaws.com",
+        "https://d1cduluh0dxamx.cloudfront.net"
     ],
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
