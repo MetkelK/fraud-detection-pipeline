@@ -22,7 +22,11 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000"],
+    allow_origins=[
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "http://fraud-api-frontend-metkelk.s3-website.us-east-2.amazonaws.com"
+    ],
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
